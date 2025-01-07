@@ -103,20 +103,24 @@ def checkObject(objects, object):
         graph.add_node(newNodeTuple)
         if (len(newNode) > 0):
             nodeQueue.append(newNode)
-    if not newNodeTuple: #checks for empty tuple
-        finishList.append(True)
     graph.add_edge(tuple(objects), newNodeTuple, moveID=object, stillIDs=newNode)
+
+futures=[]
 
 while True:
     #print(len(nodeQueue))
-    print(100*len(finishList)/len(part_ids) , "%", len(nodeQueue),end="\r")
     if (len(nodeQueue)>0):
         objects = nodeQueue.pop()
         #print(objects)
         for object in objects:
-            executer.submit(checkObject, objects, object)
-    elif len(finishList)>=len(part_ids):
-        break
+            futures.append(executer.submit(checkObject, objects, object))
+    else:
+        for future in futures:
+            if future.done():
+                futures.remove(future)
+        if len(futures)==0:
+            break
+
 
 executer.shutdown(wait = True)
 #print("hi")

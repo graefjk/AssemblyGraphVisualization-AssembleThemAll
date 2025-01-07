@@ -1,3 +1,5 @@
+This is a fork of [Assemble Them All](https://github.com/yunshengtian/Assemble-Them-All) to create a file to use with the [Assembly Graph Visualization](https://github.tik.uni-stuttgart.de/st161399/AssemblyGraphVisualization) Project.
+
 # Assemble-Them-All
 
 This repository contains the official code and dataset of [Assemble Them All: Physics-Based Planning for Generalizable Assembly by Disassembly (SIGGRAPH Asia 2022)](http://assembly.csail.mit.edu/). 

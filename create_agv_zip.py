@@ -116,7 +116,7 @@ while True:
                         if (len(newNode) > 0):
                             nodeQueue.append(newNode)
                             #print("appending ",newNode, nodeQueue)
-                    graph.add_edge(tuple(objects), newNodeTuple, moveID=object, stillIDs=newNode)
+                    graph.add_edge(newNodeTuple, tuple(objects), moveID=object, stillIDs=newNode)
 
                 futures.remove(future)
         if (len(futures)==0) and (len(nodeQueue)==0):

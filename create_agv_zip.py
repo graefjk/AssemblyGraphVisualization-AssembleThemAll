@@ -11,7 +11,8 @@ import sys
 import threading
 import queue
 import time
-from shutil import make_archive
+import json
+import shutil
 
 start = time.time()
 
@@ -44,6 +45,10 @@ assembly_dir = os.path.join(asset_folder, args.dir, args.id)
 filename = 'assembly_' + str(args.id)
 save_folder = os.path.join(project_base_dir, './assemblies', './' + filename)
 os.makedirs(save_folder)
+objects_folder = os.path.join(save_folder, './objects')
+os.makedirs(objects_folder)
+for file in os.listdir(assembly_dir):
+    shutil.copy2(os.path.join(assembly_dir,file), objects_folder)
 
 #if args.rotation: args.seq_max_time *= 2
         
@@ -124,9 +129,6 @@ while True:
             break
 
 executer.shutdown(wait = True)
-
-import json
-import shutil
 
 with open(os.path.join(save_folder,'./graph.json'), 'w') as f:
     json.dump(nx.readwrite.json_graph.node_link_data(graph), f)

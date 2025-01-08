@@ -698,7 +698,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--planner', type=str, required=True, choices=['bfs', 'bk-rrt'])
     parser.add_argument('--id', type=str, required=True, help='assembly id (e.g. 00000)')
-    parser.add_argument('--dir', type=str, default='joint_assembly', help='directory storing all assemblies')
+    parser.add_argument('--dir', type=str, default='multi_assembly', help='directory storing all assemblies')
     parser.add_argument('--move-id', type=str, default='0')
     parser.add_argument('--still-ids', type=str, nargs='+', default=['1'])
     parser.add_argument('--rotation', default=False, action='store_true')

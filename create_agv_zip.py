@@ -10,6 +10,9 @@ import concurrent.futures
 import sys
 import threading
 import queue
+import time
+
+start = time.time()
 
 parser = ArgumentParser()
 parser.add_argument('--planner', type=str, required=True, choices=['bfs', 'bk-rrt'])
@@ -122,6 +125,8 @@ executer.shutdown(wait = True)
 
 for node in graph.nodes:
     print(node)
+
+print("time:", time.time()-start,"s")
 
 #for edge in graph.edges:
 #    print(graph[edge[0]][edge[1]])

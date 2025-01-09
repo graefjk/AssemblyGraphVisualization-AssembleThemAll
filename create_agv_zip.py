@@ -81,6 +81,7 @@ def checkObject(objects, object, graph, nodeQueue):
     newNode.remove(object)
     print("checking ",newNode, object)
     newNodeTuple = tuple(newNode)
+    status = 'Success'
     #check if object can be removed from Objects
     if(len(newNode)>0):
         planner = get_planner(args.planner)(asset_folder, assembly_dir, object, newNode, args.rotation, args.body_type, args.sdf_dx, args.collision_th, args.force_mag, args.frame_skip, args.save_sdf)

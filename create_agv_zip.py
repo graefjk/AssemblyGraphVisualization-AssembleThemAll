@@ -87,13 +87,13 @@ def checkObject(objects, object, graph, nodeQueue):
         status, t_plan, path = planner.plan(args.max_time, seed=args.seed, return_path=True, render=args.render, record_path=record_path)
         print("result:",newNode, object, status)
         if status != 'Success':
-            return
+            return None, None, None, None, status
         step_folder = os.path.join(save_folder, './steps/' ,  "./"+str(newNode)+"_" +str(object))
         os.makedirs(step_folder)
         save_dir = os.path.join(step_folder, './matrixes')
         planner.save_path(path, save_dir, args.n_save_state)
 
-    return newNode, newNodeTuple, tuple(objects), object 
+    return newNode, newNodeTuple, tuple(objects), object, status
     
     
 
@@ -102,6 +102,8 @@ def checkObject(objects, object, graph, nodeQueue):
 #status, t_plan, path = planner.plan(args.max_time, seed=args.seed, return_path=True, render=args.render, record_path=record_path)
 
 futures=[]
+successes = 0
+timeouts = 0
 
 while True:
     #print(len(nodeQueue))
@@ -113,17 +115,19 @@ while True:
     else:
         for future in futures:
             if future.done():
-                result = future.result()
-                if result is not None:
-                    newNode, newNodeTuple, objects, object = result
+                newNode, newNodeTuple, objects, object, status = future.result()
+                if newNode is not None:
                     if not (newNodeTuple in graph):
                         graph.add_node(newNodeTuple)
                         if (len(newNode) > 0):
                             nodeQueue.append(newNode)
                             #print("appending ",newNode, nodeQueue)
                     graph.add_edge(newNodeTuple, tuple(objects), moveID=object, stillIDs=newNode)
-
                 futures.remove(future)
+                if status == 'Success':
+                    successes+=1
+                else:
+                    timeouts+=1
         if (len(futures)==0) and (len(nodeQueue)==0):
             print("breaking ", nodeQueue)
             break
@@ -141,7 +145,7 @@ for node in graph.nodes:
 
 
 
-print("time:", time.time()-start,"s")
+print("successes:", successes, "timeouts:", timeouts, "time:", time.time()-start, "s")
 
 #for edge in graph.edges:
 #    print(graph[edge[0]][edge[1]])

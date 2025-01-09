@@ -134,9 +134,11 @@ while True:
 
 executer.shutdown(wait = True)
 
+print("writing graph.json")
 with open(os.path.join(save_folder,'./graph.json'), 'w') as f:
     json.dump(nx.readwrite.json_graph.node_link_data(graph), f)
 
+print("packing zip file")
 shutil.make_archive(filename, 'zip', save_folder)
 shutil.rmtree(save_folder)
 

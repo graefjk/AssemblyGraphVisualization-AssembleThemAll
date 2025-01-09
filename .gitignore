@@ -137,3 +137,6 @@ assets/multi_assembly
 assets/leocad
 assemblies
 *.zip
+*.npy
+*.obj
+graph.json

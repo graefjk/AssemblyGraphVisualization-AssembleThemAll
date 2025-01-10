@@ -57,6 +57,19 @@ def save_path(obj_dir, path, n_frame=None):
 
     os.makedirs(obj_dir)
     for frame, state in enumerate(path):
+        np.save(os.path.join(obj_dir, 'transformationMatrices.npy'), get_transform_matrix(state))
+
+
+
+def save_path_old(obj_dir, path, n_frame=None):
+    '''
+    Save motion of assembly meshes at every time step
+    '''
+    if path is None: return
+    path = interpolate_path(path, n_frame)
+
+    os.makedirs(obj_dir)
+    for frame, state in enumerate(path):
         frame_transform = get_transform_matrix(state)
         np.save(os.path.join(obj_dir, f'{frame}.npy'), frame_transform)
 

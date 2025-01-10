@@ -1,15 +1,10 @@
 from assets.load import load_assembly
 from assets.save import clear_saved_sdfs
 from examples.run_joint_plan import get_planner
-from itertools import chain, combinations
 from argparse import ArgumentParser
-from copy import deepcopy
 import os
 import networkx as nx
 import concurrent.futures
-import sys
-import threading
-import queue
 import time
 import json
 import shutil
@@ -90,9 +85,7 @@ def checkObject(objects, object, graph, nodeQueue):
         if status != 'Success':
             return None, None, None, None, status
         step_folder = os.path.join(save_folder, './steps/' ,  "./"+str(newNode)+"_" +str(object))
-        os.makedirs(step_folder)
-        save_dir = os.path.join(step_folder, './matrixes')
-        planner.save_path(path, save_dir, args.n_save_state)
+        planner.save_path(path, step_folder, args.n_save_state)
 
     return newNode, newNodeTuple, tuple(objects), object, status
     

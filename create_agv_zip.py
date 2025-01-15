@@ -9,6 +9,7 @@ import time
 import json
 import shutil
 import time
+import psutil
 
 start = time.time()
 
@@ -103,6 +104,12 @@ n = 0
 
 while True:
     #print(len(nodeQueue))
+    #print("RAM: ",psutil.virtual_memory().percent)
+    if (psutil.virtual_memory().percent > 80): #clear RAM
+        print("clearing objects from RAM")
+        executer.shutdown(wait = True)
+        executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
+
     if (len(nodeQueue)>0):
         objects = nodeQueue.pop()
         #print(objects)
@@ -125,6 +132,7 @@ while True:
                     successes+=1
                 else:
                     timeouts+=1
+
         if (len(futures)==0) and (len(nodeQueue)==0):
             print("breaking ", nodeQueue)
             break

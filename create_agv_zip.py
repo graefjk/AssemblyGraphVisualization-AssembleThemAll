@@ -8,6 +8,7 @@ import concurrent.futures
 import time
 import json
 import shutil
+import time
 
 start = time.time()
 
@@ -71,7 +72,7 @@ maxSize = 2**(len(part_ids))
 n=0
 finished=False
 
-def checkObject(objects, object, graph, nodeQueue, id):
+def checkObject(objects, object, id):
     newNode = objects.copy()
     newNode.remove(object)
     print("checking ",newNode, object)
@@ -106,7 +107,7 @@ while True:
         objects = nodeQueue.pop()
         #print(objects)
         for object in objects:
-            futures.append(executer.submit(checkObject, objects, object, graph, nodeQueue, n))
+            futures.append(executer.submit(checkObject, objects, object, n))
             n += 1
     else:
         for future in futures:
@@ -127,6 +128,8 @@ while True:
         if (len(futures)==0) and (len(nodeQueue)==0):
             print("breaking ", nodeQueue)
             break
+    time.sleep(1) # only check once every second to not block the thread
+    
 
 executer.shutdown(wait = True)
 

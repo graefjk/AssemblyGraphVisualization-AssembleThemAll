@@ -71,7 +71,7 @@ maxSize = 2**(len(part_ids))
 n=0
 finished=False
 
-def checkObject(objects, object, graph, nodeQueue):
+def checkObject(objects, object, graph, nodeQueue, id):
     newNode = objects.copy()
     newNode.remove(object)
     print("checking ",newNode, object)
@@ -83,11 +83,11 @@ def checkObject(objects, object, graph, nodeQueue):
         status, t_plan, path = planner.plan(args.max_time, seed=args.seed, return_path=True, render=args.render, record_path=record_path)
         print("result:",newNode, object, status)
         if status != 'Success':
-            return None, None, None, None, status
-        step_folder = os.path.join(save_folder, './steps/' ,  "./"+str(newNode)+"_" +str(object))
+            return None, None, None, None, status, id
+        step_folder = os.path.join(save_folder, './steps/' ,  "./"+str(id))
         planner.save_path(path, step_folder, args.n_save_state)
 
-    return newNode, newNodeTuple, tuple(objects), object, status
+    return newNode, newNodeTuple, tuple(objects), object, status, id
     
     
 
@@ -98,6 +98,7 @@ def checkObject(objects, object, graph, nodeQueue):
 futures=[]
 successes = 0
 timeouts = 0
+n = 0
 
 while True:
     #print(len(nodeQueue))
@@ -105,18 +106,19 @@ while True:
         objects = nodeQueue.pop()
         #print(objects)
         for object in objects:
-            futures.append(executer.submit(checkObject, objects, object, graph,nodeQueue))
+            futures.append(executer.submit(checkObject, objects, object, graph, nodeQueue, n))
+            n += 1
     else:
         for future in futures:
             if future.done():
-                newNode, newNodeTuple, objects, object, status = future.result()
+                newNode, newNodeTuple, objects, object, status, id = future.result()
                 if newNode is not None:
                     if not (newNodeTuple in graph):
                         graph.add_node(newNodeTuple)
                         if (len(newNode) > 0):
                             nodeQueue.append(newNode)
                             #print("appending ",newNode, nodeQueue)
-                    graph.add_edge(newNodeTuple, tuple(objects), moveID=object, stillIDs=newNode)
+                    graph.add_edge(newNodeTuple, tuple(objects), moveID=object, edgeID=id)
                 futures.remove(future)
                 if status == 'Success':
                     successes+=1

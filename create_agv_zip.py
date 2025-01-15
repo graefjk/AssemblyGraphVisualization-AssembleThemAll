@@ -10,6 +10,7 @@ import json
 import shutil
 import time
 import psutil
+from collections import deque 
 
 start = time.time()
 
@@ -68,7 +69,7 @@ maxWorkers = os.cpu_count()
 executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
 finishList = []
 
-nodeQueue = [part_ids]
+nodeQueue = deque([part_ids])
 maxSize = 2**(len(part_ids))
 n=0
 finished=False
@@ -125,7 +126,7 @@ while True:
                 if not (newNodeTuple in graph):
                     graph.add_node(newNodeTuple)
                     if (len(newNode) > 0):
-                        nodeQueue.append(newNode)
+                        nodeQueue.appendleft(newNode)
                         #print("appending ",newNode, nodeQueue)
                 graph.add_edge(newNodeTuple, tuple(objects), moveID=object, edgeID=id)
             futures.remove(future)

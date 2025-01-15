@@ -64,7 +64,7 @@ graph = nx.DiGraph()
 part_ids = [name.replace('.obj', '') for name in names]
 graph.add_node(tuple(part_ids))
 
-maxWorkers = None #set to None to set to the number of processors on the machine 
+maxWorkers = os.cpu_count()
 executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
 finishList = []
 
@@ -103,39 +103,40 @@ timeouts = 0
 n = 0
 
 while True:
-    #print(len(nodeQueue))
+    #print(len(futures))
     #print("RAM: ",psutil.virtual_memory().percent)
     if (psutil.virtual_memory().percent > 80): #clear RAM
         print("clearing objects from RAM")
         executer.shutdown(wait = True)
         executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
 
-    if (len(nodeQueue)>0):
+
+    if (len(nodeQueue)>0) and (len(futures)< maxWorkers*2):
+        #print(len(futures), maxWorkers*2)
         objects = nodeQueue.pop()
-        #print(objects)
+        print("submitting", objects)
         for object in objects:
             futures.append(executer.submit(checkObject, objects, object, n))
             n += 1
-    else:
-        for future in futures:
-            if future.done():
-                newNode, newNodeTuple, objects, object, status, id = future.result()
-                if newNode is not None:
-                    if not (newNodeTuple in graph):
-                        graph.add_node(newNodeTuple)
-                        if (len(newNode) > 0):
-                            nodeQueue.append(newNode)
-                            #print("appending ",newNode, nodeQueue)
-                    graph.add_edge(newNodeTuple, tuple(objects), moveID=object, edgeID=id)
-                futures.remove(future)
-                if status == 'Success':
-                    successes+=1
-                else:
-                    timeouts+=1
+    for future in futures:
+        if future.done():
+            newNode, newNodeTuple, objects, object, status, id = future.result()
+            if newNode is not None:
+                if not (newNodeTuple in graph):
+                    graph.add_node(newNodeTuple)
+                    if (len(newNode) > 0):
+                        nodeQueue.append(newNode)
+                        #print("appending ",newNode, nodeQueue)
+                graph.add_edge(newNodeTuple, tuple(objects), moveID=object, edgeID=id)
+            futures.remove(future)
+            if status == 'Success':
+                successes+=1
+            else:
+                timeouts+=1
 
-        if (len(futures)==0) and (len(nodeQueue)==0):
-            print("breaking ", nodeQueue)
-            break
+    if (len(futures)==0) and (len(nodeQueue)==0):
+        print("breaking ", nodeQueue)
+        break
     time.sleep(1) # only check once every second to not block the thread
     
 

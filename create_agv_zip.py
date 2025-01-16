@@ -8,7 +8,6 @@ import concurrent.futures
 import time
 import json
 import shutil
-import time
 import psutil
 from collections import deque 
 import logging
@@ -36,6 +35,7 @@ parser.add_argument('--save-dir', type=str, default=None)
 parser.add_argument('--n-save-state', type=int, default=100)
 parser.add_argument('--save-sdf', default=False, action='store_true')
 parser.add_argument('--check-subsets', default=True)
+parser.add_argument('--check-failcontacts', default=True)
 
 
 args = parser.parse_args()
@@ -60,7 +60,6 @@ meshes, names = load_assembly(assembly_dir, return_names=True)
 
 clear_saved_sdfs(assembly_dir)
 
-
 print(names)
 
 
@@ -73,6 +72,7 @@ executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
 finishList = []
 
 setList = [[] for i in range(len(part_ids))]
+contactIDsList = [set(part_ids) for i in range(len(part_ids))]
 nodeQueue = deque([part_ids])
 maxSize = 2**(len(part_ids))
 n=0
@@ -87,14 +87,14 @@ def checkObject(objects, object, id):
     #check if object can be removed from Objects
     if(len(newNode)>0):
         planner = get_planner(args.planner)(asset_folder, assembly_dir, object, newNode, args.rotation, args.body_type, args.sdf_dx, args.collision_th, args.force_mag, args.frame_skip, args.save_sdf)
-        status, t_plan, path = planner.plan(args.max_time, seed=args.seed, return_path=True, render=args.render, record_path=record_path)
+        status, t_plan, path, contactIDs = planner.plan(args.max_time, seed=args.seed, return_path=True, render=args.render, record_path=record_path)
         print("result:",newNode, object, status)
         if status != 'Success':
-            return None, None, None, None, status, id
+            return None, None, None, object, status, id, contactIDs
         step_folder = os.path.join(save_folder, './steps/' ,  "./"+str(id))
         planner.save_path(path, step_folder, args.n_save_state)
 
-    return newNode, newNodeTuple, tuple(objects), object, status, id
+    return newNode, newNodeTuple, tuple(objects), object, status, id, set()
     
 
 def getSetID(objects, object):
@@ -113,6 +113,7 @@ futures=[]
 successes = 0
 subsetSuccesses = 0
 timeouts = 0
+failures = 0
 n = 0
 
 while True:
@@ -130,11 +131,11 @@ while True:
         objects = nodeQueue.pop()
         print("submitting", objects)
         for object in objects:
+            newNode = objects.copy()
+            newNode.remove(object)
             if args.check_subsets:
                 matrixID = getSetID(objects, object)
                 if matrixID is not None:
-                    newNode = objects.copy()
-                    newNode.remove(object)
                     newNodeTuple = tuple(newNode)
                     if not (newNodeTuple in graph):
                         graph.add_node(newNodeTuple)
@@ -142,15 +143,19 @@ while True:
                             nodeQueue.appendleft(newNode)
                             #print("appending ",newNode, nodeQueue)
                     graph.add_edge(tuple(newNodeTuple), tuple(objects), moveID=object, edgeID=matrixID)
-                    print("result:",newNode, object, "is Subset, Success")
+                    print("result:",newNode, object, "is a subset, Success")
                     subsetSuccesses+=1
                     continue
-            futures.append(executer.submit(checkObject, objects, object, n))
+            if args.check_failcontacts and not contactIDsList[int(object)].issubset(set(newNode)):
+                futures.append(executer.submit(checkObject, objects, object, n))
+            else:
+                print("result:",newNode, object, "Failure")
+                failures+=1
             n += 1
 
     for future in futures:
         if future.done():
-            newNode, newNodeTuple, objects, object, status, id = future.result()
+            newNode, newNodeTuple, objects, object, status, id, contactIDs = future.result()
             if newNode is not None:
                 if not (newNodeTuple in graph):
                     graph.add_node(newNodeTuple)
@@ -164,6 +169,8 @@ while True:
             if status == 'Success':
                 successes+=1
             else:
+                if contactIDs.issubset(contactIDsList[int(object)]):
+                    contactIDsList[int(object)] = contactIDs
                 timeouts+=1
 
     if (len(futures)==0) and (len(nodeQueue)==0):
@@ -186,7 +193,7 @@ shutil.rmtree(save_folder)
 for node in graph.nodes:
     print(node)
 
-print("successes:", successes, "subSets found:" , subsetSuccesses ,"timeouts:", timeouts, "time:", time.time()-start, "s")
+print("successes:", successes, "subSets found:" , subsetSuccesses ,"timeouts:", timeouts, "failures:",failures ,"time:", time.time()-start, "s")
 
 #for edge in graph.edges:
 #    print(graph[edge[0]][edge[1]])

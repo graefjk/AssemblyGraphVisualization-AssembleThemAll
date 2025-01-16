@@ -68,7 +68,7 @@ graph = nx.DiGraph()
 part_ids = [name.replace('.obj', '') for name in names]
 graph.add_node(tuple(part_ids))
 
-maxWorkers = os.cpu_count()-1
+maxWorkers = os.cpu_count()
 executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
 finishList = []
 
@@ -125,7 +125,7 @@ while True:
         executer.shutdown(wait = True)
         executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
 
-    if (len(nodeQueue)>0) and (len(futures)< maxWorkers*2):
+    while (len(nodeQueue)>0) and (len(futures)< maxWorkers*2):
         #print(len(futures), maxWorkers*2)
         objects = nodeQueue.pop()
         print("submitting", objects)
@@ -169,7 +169,7 @@ while True:
     if (len(futures)==0) and (len(nodeQueue)==0):
         print("breaking ", nodeQueue)
         break
-    time.sleep(0.01) # only check once every second to not block the thread
+    time.sleep(1) # only check once every second to not block the thread
     
 
 

@@ -38,7 +38,10 @@ parser.add_argument('--check-subsets', type=int, default=1)
 parser.add_argument('--check-failcontacts', type=int, default=1)
 parser.add_argument('--top-down', type=int, default=1)
 
+
+
 args = parser.parse_args()
+print(not args.top_down)
 print(bool(args.check_subsets))
 
 project_base_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.'))
@@ -66,7 +69,9 @@ print(names)
 
 graph = nx.DiGraph()
 part_ids = [name.replace('.obj', '') for name in names]
-graph.add_node(tuple(part_ids))
+
+if args.top_down:
+    graph.add_node(tuple(sorted(part_ids)))
 
 maxWorkers = os.cpu_count()
 executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
@@ -77,7 +82,7 @@ contactIDsList = [[frozenset(part_ids)] for i in range(len(part_ids))]
 if args.top_down:
     nodeQueue = deque([part_ids])
 else:
-    nodeQueue = deque([])
+    nodeQueue = deque([None])
 
 maxSize = 2**(len(part_ids))
 finished=False
@@ -93,7 +98,7 @@ def checkObject(objects, object, id):
     newNode = objects.copy()
     newNode.remove(object)
     print("checking ",newNode, object)
-    newNodeTuple = tuple(newNode)
+    newNodeTuple = tuple(sorted(newNode))
     status = 'Success'
     #check if object can be removed from Objects
     if(len(newNode)>0):
@@ -105,7 +110,7 @@ def checkObject(objects, object, id):
         step_folder = os.path.join(save_folder, './steps/' ,  "./"+str(id))
         planner.save_path(path, step_folder, args.n_save_state)
 
-    return newNode, newNodeTuple, tuple(objects), object, status, id, set()
+    return newNode, newNodeTuple, objects, object, status, id, set()
     
 
 def getSetID(objects, object):
@@ -121,6 +126,21 @@ def getSetID(objects, object):
 #status, t_plan, path = planner.plan(args.max_time, seed=args.seed, return_path=True, render=args.render, record_path=record_path)
 
 
+def appendNodeToQueue(newNode, objects):
+    if args.top_down and (len(newNode) > 0):
+        nodeQueue.appendleft(newNode)
+    elif not args.top_down:
+        nodeQueue.appendleft(objects)
+
+def addNodeToGraphAndQueue(newNode, objects):
+    if args.top_down and not (tuple(newNode) in graph.nodes):
+        graph.add_node(tuple(sorted(newNode)))
+        appendNodeToQueue(newNode, objects)
+    elif not args.top_down and not (tuple(objects) in graph.nodes):
+        graph.add_node(tuple(sorted(objects)))
+        appendNodeToQueue(newNode, objects)
+        
+
 '''''
 tries to create an Edge by removing object from objects
 '''''
@@ -129,18 +149,14 @@ def tryCreateEdge(object, objects):
 
     newNode = objects.copy()
     newNode.remove(object)  
-    matrixID = getSetID(objects, object)
-    if matrixID is not None:
-        newNodeTuple = tuple(newNode)
-        if not (newNodeTuple in graph):
-            graph.add_node(newNodeTuple)
-            if (len(newNode) > 0):
-                nodeQueue.appendleft(newNode)
-                #print("appending ",newNode, nodeQueue)
-        graph.add_edge(tuple(newNodeTuple), tuple(objects), moveID=object, edgeID=matrixID)
-        print("result:",newNode, object, "is a subset, Success")
-        subsetSuccesses +=1
-        return 
+    if args.check_subsets:
+        matrixID = getSetID(objects, object)
+        if matrixID is not None:
+            addNodeToGraphAndQueue(newNode, objects)
+            graph.add_edge(tuple(sorted(newNode)), tuple(sorted(objects)), moveID=object, edgeID=matrixID)
+            print("result:",newNode, object, "is a subset, Success")
+            subsetSuccesses +=1
+            return 
     isSuperset = False
     if args.check_failcontacts:
         for idList in contactIDsList[int(object)]:
@@ -165,12 +181,8 @@ def checkFutures():
                 contactIDs[i] = contactIDs[i][4:] #remove 'part' from e.g. 'part3'
             contactIDs = frozenset(contactIDs)
             if newNode is not None:
-                if not (newNodeTuple in graph):
-                    graph.add_node(newNodeTuple)
-                    if (len(newNode) > 0):
-                        nodeQueue.appendleft(newNode)
-                        #print("appending ",newNode, nodeQueue)
-                graph.add_edge(newNodeTuple, tuple(objects), moveID=object, edgeID=id)
+                addNodeToGraphAndQueue(newNode, objects)
+                graph.add_edge(newNodeTuple, tuple(sorted(objects)), moveID=object, edgeID=id)
                 if getSetID(objects, object) is None:
                     setList[int(object)].append([set(objects), id])
             futures.remove(future)
@@ -187,7 +199,8 @@ def checkFutures():
                     contactIDsList[int(object)].append(contactIDs)
                     print(contactIDsList)
                 contactIDsList[int(object)] = list(set(contactIDsList[int(object)])) #remove duplicates
-            timeouts+=1
+            else:
+                timeouts+=1
 
 
 while True:
@@ -205,8 +218,16 @@ while True:
         print("submitting", objects)
         if args.top_down:
             for object in objects:
-                if args.check_subsets:
-                    tryCreateEdge(object, objects)
+                tryCreateEdge(object, objects)
+        else:
+            if objects is None:
+                objects = []
+            nodesToAdd = set(part_ids) - set(objects)
+            for node in nodesToAdd:
+                allParts = objects.copy()
+                allParts.append(node)
+                tryCreateEdge(node, allParts)
+
     
     checkFutures()
 

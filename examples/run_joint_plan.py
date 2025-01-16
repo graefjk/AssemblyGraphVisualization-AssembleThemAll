@@ -509,6 +509,8 @@ class BFSPlanner(PhysicsPlanner):
 
     def plan_trans(self, max_time, max_depth=None, seed=1, return_path=False, render=False, record_path=None):
 
+        contactIDs = set()
+
         self.seed(seed)
 
         actions = np.array([
@@ -551,6 +553,8 @@ class BFSPlanner(PhysicsPlanner):
                         self.sim.forward(1, verbose=False)
                         new_state = self.get_state()
                         temp_path.append(new_state.q)
+                        
+                        contactIDs.update(self.get_contact_bodies(self.move_id))
 
                         t_plan = time() - t_start
                         if t_plan > max_time:
@@ -564,8 +568,8 @@ class BFSPlanner(PhysicsPlanner):
 
                     if status == 'Timeout':
                         break
-
-                    if self.any_state_similar(temp_path[:-self.frame_skip], new_state.q):
+                   
+                    if self.any_state_similar(temp_path[:-self.frame_skip], new_state.q): 
                         break # back and forth
 
                 if status in ['Success', 'Timeout']:
@@ -583,7 +587,8 @@ class BFSPlanner(PhysicsPlanner):
         if render:
             self.render(path, record_path=record_path)
 
-        return (status, t_plan, path) if return_path else (status, t_plan)
+        #print(self.move_id, contactIDs)
+        return (status, t_plan, path, contactIDs) if return_path else (status, t_plan, None, contactIDs)
 
     def plan_rot(self, max_time, max_depth=None, seed=1, return_path=False, render=False, record_path=None):
 

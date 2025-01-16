@@ -11,6 +11,8 @@ import shutil
 import time
 import psutil
 from collections import deque 
+import logging
+logging.disable(logging.WARNING)
 
 start = time.time()
 
@@ -33,6 +35,7 @@ parser.add_argument('--record-dir', type=str, default=None, help='directory to s
 parser.add_argument('--save-dir', type=str, default=None)
 parser.add_argument('--n-save-state', type=int, default=100)
 parser.add_argument('--save-sdf', default=False, action='store_true')
+parser.add_argument('--check-subsets', default=True)
 
 
 args = parser.parse_args()
@@ -65,10 +68,11 @@ graph = nx.DiGraph()
 part_ids = [name.replace('.obj', '') for name in names]
 graph.add_node(tuple(part_ids))
 
-maxWorkers = os.cpu_count()
+maxWorkers = os.cpu_count()-1
 executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
 finishList = []
 
+setList = [[] for i in range(len(part_ids))]
 nodeQueue = deque([part_ids])
 maxSize = 2**(len(part_ids))
 n=0
@@ -92,6 +96,13 @@ def checkObject(objects, object, id):
 
     return newNode, newNodeTuple, tuple(objects), object, status, id
     
+
+def getSetID(objects, object):
+    if len(setList[int(object)]) > 0:
+        for item in setList[int(object)]:
+            if(set(objects).issubset(item[0])):
+                return item[1]
+    return None
     
 
 #tests
@@ -100,25 +111,43 @@ def checkObject(objects, object, id):
 
 futures=[]
 successes = 0
+subsetSuccesses = 0
 timeouts = 0
 n = 0
 
 while True:
     #print(len(futures))
     #print("RAM: ",psutil.virtual_memory().percent)
+    
+
     if (psutil.virtual_memory().percent > 80): #clear RAM
         print("clearing objects from RAM")
         executer.shutdown(wait = True)
         executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
-
 
     if (len(nodeQueue)>0) and (len(futures)< maxWorkers*2):
         #print(len(futures), maxWorkers*2)
         objects = nodeQueue.pop()
         print("submitting", objects)
         for object in objects:
+            if args.check_subsets:
+                matrixID = getSetID(objects, object)
+                if matrixID is not None:
+                    newNode = objects.copy()
+                    newNode.remove(object)
+                    newNodeTuple = tuple(newNode)
+                    if not (newNodeTuple in graph):
+                        graph.add_node(newNodeTuple)
+                        if (len(newNode) > 0):
+                            nodeQueue.appendleft(newNode)
+                            #print("appending ",newNode, nodeQueue)
+                    graph.add_edge(tuple(newNodeTuple), tuple(objects), moveID=object, edgeID=matrixID)
+                    print("result:",newNode, object, "is Subset, Success")
+                    subsetSuccesses+=1
+                    continue
             futures.append(executer.submit(checkObject, objects, object, n))
             n += 1
+
     for future in futures:
         if future.done():
             newNode, newNodeTuple, objects, object, status, id = future.result()
@@ -129,6 +158,8 @@ while True:
                         nodeQueue.appendleft(newNode)
                         #print("appending ",newNode, nodeQueue)
                 graph.add_edge(newNodeTuple, tuple(objects), moveID=object, edgeID=id)
+                if getSetID(objects, object) is None:
+                    setList[int(object)].append([set(objects), id])
             futures.remove(future)
             if status == 'Success':
                 successes+=1
@@ -138,8 +169,9 @@ while True:
     if (len(futures)==0) and (len(nodeQueue)==0):
         print("breaking ", nodeQueue)
         break
-    time.sleep(1) # only check once every second to not block the thread
+    time.sleep(0.01) # only check once every second to not block the thread
     
+
 
 executer.shutdown(wait = True)
 
@@ -154,9 +186,7 @@ shutil.rmtree(save_folder)
 for node in graph.nodes:
     print(node)
 
-
-
-print("successes:", successes, "timeouts:", timeouts, "time:", time.time()-start, "s")
+print("successes:", successes, "subSets found:" , subsetSuccesses ,"timeouts:", timeouts, "time:", time.time()-start, "s")
 
 #for edge in graph.edges:
 #    print(graph[edge[0]][edge[1]])

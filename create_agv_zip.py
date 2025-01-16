@@ -34,11 +34,11 @@ parser.add_argument('--record-dir', type=str, default=None, help='directory to s
 parser.add_argument('--save-dir', type=str, default=None)
 parser.add_argument('--n-save-state', type=int, default=100)
 parser.add_argument('--save-sdf', default=False, action='store_true')
-parser.add_argument('--check-subsets', default=True)
-parser.add_argument('--check-failcontacts', default=True)
-
+parser.add_argument('--check-subsets', type=int, default=1)
+parser.add_argument('--check-failcontacts', type=int, default=1)
 
 args = parser.parse_args()
+print(bool(args.check_subsets))
 
 project_base_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.'))
 asset_folder = os.path.join(project_base_dir, './assets')

@@ -36,6 +36,7 @@ parser.add_argument('--n-save-state', type=int, default=100)
 parser.add_argument('--save-sdf', default=False, action='store_true')
 parser.add_argument('--check-subsets', type=int, default=1)
 parser.add_argument('--check-failcontacts', type=int, default=1)
+parser.add_argument('--top-down', type=int, default=1)
 
 args = parser.parse_args()
 print(bool(args.check_subsets))
@@ -72,11 +73,21 @@ executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
 finishList = []
 
 setList = [[] for i in range(len(part_ids))]
-contactIDsList = [set(part_ids) for i in range(len(part_ids))]
-nodeQueue = deque([part_ids])
+contactIDsList = [[frozenset(part_ids)] for i in range(len(part_ids))]
+if args.top_down:
+    nodeQueue = deque([part_ids])
+else:
+    nodeQueue = deque([])
+
 maxSize = 2**(len(part_ids))
-n=0
 finished=False
+
+futures=[]
+successes = 0
+subsetSuccesses = 0
+timeouts = 0
+failures = 0
+n = 0
 
 def checkObject(objects, object, id):
     newNode = objects.copy()
@@ -109,53 +120,50 @@ def getSetID(objects, object):
 #planner = get_planner(args.planner)(asset_folder, assembly_dir, part_ids[0], part_ids[1:], args.rotation, args.body_type, args.sdf_dx, args.collision_th, args.force_mag, args.frame_skip, args.save_sdf)
 #status, t_plan, path = planner.plan(args.max_time, seed=args.seed, return_path=True, render=args.render, record_path=record_path)
 
-futures=[]
-successes = 0
-subsetSuccesses = 0
-timeouts = 0
-failures = 0
-n = 0
 
-while True:
-    #print(len(futures))
-    #print("RAM: ",psutil.virtual_memory().percent)
-    
+'''''
+tries to create an Edge by removing object from objects
+'''''
+def tryCreateEdge(object, objects):
+    global subsetSuccesses, failures, n, successes, executer, futures, contactIDsList
 
-    if (psutil.virtual_memory().percent > 80): #clear RAM
-        print("clearing objects from RAM")
-        executer.shutdown(wait = True)
-        executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
+    newNode = objects.copy()
+    newNode.remove(object)  
+    matrixID = getSetID(objects, object)
+    if matrixID is not None:
+        newNodeTuple = tuple(newNode)
+        if not (newNodeTuple in graph):
+            graph.add_node(newNodeTuple)
+            if (len(newNode) > 0):
+                nodeQueue.appendleft(newNode)
+                #print("appending ",newNode, nodeQueue)
+        graph.add_edge(tuple(newNodeTuple), tuple(objects), moveID=object, edgeID=matrixID)
+        print("result:",newNode, object, "is a subset, Success")
+        subsetSuccesses +=1
+        return 
+    isSuperset = False
+    if args.check_failcontacts:
+        for idList in contactIDsList[int(object)]:
+            if set(newNode).issuperset(idList):
+                isSuperset = True
+    if not isSuperset:
+        futures.append(executer.submit(checkObject, objects, object, n))
+    else:
+        print("result:",newNode, object, "Failure")
+        failures+=1
+    n += 1
 
-    while (len(nodeQueue)>0) and (len(futures)< maxWorkers*2):
-        #print(len(futures), maxWorkers*2)
-        objects = nodeQueue.pop()
-        print("submitting", objects)
-        for object in objects:
-            newNode = objects.copy()
-            newNode.remove(object)
-            if args.check_subsets:
-                matrixID = getSetID(objects, object)
-                if matrixID is not None:
-                    newNodeTuple = tuple(newNode)
-                    if not (newNodeTuple in graph):
-                        graph.add_node(newNodeTuple)
-                        if (len(newNode) > 0):
-                            nodeQueue.appendleft(newNode)
-                            #print("appending ",newNode, nodeQueue)
-                    graph.add_edge(tuple(newNodeTuple), tuple(objects), moveID=object, edgeID=matrixID)
-                    print("result:",newNode, object, "is a subset, Success")
-                    subsetSuccesses+=1
-                    continue
-            if args.check_failcontacts and not contactIDsList[int(object)].issubset(set(newNode)):
-                futures.append(executer.submit(checkObject, objects, object, n))
-            else:
-                print("result:",newNode, object, "Failure")
-                failures+=1
-            n += 1
+
+def checkFutures():
+    global  successes, timeouts, futures, contactIDsList
 
     for future in futures:
         if future.done():
             newNode, newNodeTuple, objects, object, status, id, contactIDs = future.result()
+            contactIDs = list(contactIDs)
+            for i in range(len(contactIDs)):
+                contactIDs[i] = contactIDs[i][4:] #remove 'part' from e.g. 'part3'
+            contactIDs = frozenset(contactIDs)
             if newNode is not None:
                 if not (newNodeTuple in graph):
                     graph.add_node(newNodeTuple)
@@ -168,14 +176,44 @@ while True:
             futures.remove(future)
             if status == 'Success':
                 successes+=1
-            else:
-                if contactIDs.issubset(contactIDsList[int(object)]):
-                    contactIDsList[int(object)] = contactIDs
-                timeouts+=1
+            elif args.check_failcontacts:
+                isSuperset = False
+                for i in range(len(contactIDsList[int(object)])):
+                    if contactIDs.issubset(contactIDsList[int(object)][i]):
+                        contactIDsList[int(object)][i]=contactIDs
+                    elif contactIDs.issuperset(contactIDsList[int(object)][i]):
+                        isSuperset = True         
+                if not isSuperset and not (contactIDs in contactIDsList[int(object)]):
+                    contactIDsList[int(object)].append(contactIDs)
+                    print(contactIDsList)
+                contactIDsList[int(object)] = list(set(contactIDsList[int(object)])) #remove duplicates
+            timeouts+=1
+
+
+while True:
+    #print(len(futures))
+    #print("RAM: ",psutil.virtual_memory().percent)
+    
+    if (psutil.virtual_memory().percent > 80): #clear RAM
+        print("clearing objects from RAM")
+        executer.shutdown(wait = True)
+        executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
+
+    while (len(nodeQueue)>0) and (len(futures)< maxWorkers*2):
+        #print(len(futures), maxWorkers*2)
+        objects = nodeQueue.pop()
+        print("submitting", objects)
+        if args.top_down:
+            for object in objects:
+                if args.check_subsets:
+                    tryCreateEdge(object, objects)
+    
+    checkFutures()
 
     if (len(futures)==0) and (len(nodeQueue)==0):
         print("breaking ", nodeQueue)
         break
+
     time.sleep(1) # only check once every second to not block the thread
     
 

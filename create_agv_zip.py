@@ -138,10 +138,10 @@ def appendNodeToQueue(newNode, objects):
         nodeQueue.appendleft(objects)
 
 def addNodeToGraphAndQueue(newNode, objects):
-    if args.top_down and not (tuple(newNode) in graph.nodes):
+    if args.top_down and not (tuple(sorted(newNode)) in graph):
         graph.add_node(tuple(sorted(newNode)))
         appendNodeToQueue(newNode, objects)
-    elif not args.top_down and not (tuple(objects) in graph.nodes):
+    elif not args.top_down and not (tuple(sorted(objects)) in graph):
         graph.add_node(tuple(sorted(objects)))
         appendNodeToQueue(newNode, objects)
         
@@ -207,8 +207,9 @@ def checkFutures():
                 contactIDsList[int(object)] = list(set(contactIDsList[int(object)])) #remove duplicates
             else:
                 timeouts+=1
-                
 
+
+#Problem: bottom up algorithm checks some edges multiple times
 
 while True:
     #print(len(futures))
@@ -221,7 +222,7 @@ while True:
 
     while (len(nodeQueue)>0) and (len(futures)< maxWorkers*2):
         #print(len(futures), maxWorkers*2)
-        objects = nodeQueue.pop()
+        objects = nodeQueue.popleft()
         print("submitting", objects)
         if args.top_down:
             for object in objects:

@@ -205,8 +205,9 @@ def checkFutures():
                     contactIDsList[int(object)].append(contactIDs)
                     print(contactIDsList)
                 contactIDsList[int(object)] = list(set(contactIDsList[int(object)])) #remove duplicates
+                timeouts += 1
             else:
-                timeouts+=1
+                timeouts += 1
 
 
 #Problem: bottom up algorithm checks some edges multiple times

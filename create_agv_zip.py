@@ -68,7 +68,7 @@ print(names)
 
 
 graph = nx.DiGraph()
-part_ids = [name.replace('.obj', '') for name in names]
+part_ids = sorted([name.replace('.obj', '') for name in names])
 
 if args.top_down:
     graph.add_node(tuple(sorted(part_ids)))
@@ -95,10 +95,10 @@ failures = 0
 n = 0
 
 def checkObject(objects, object, id):
-    newNode = objects.copy()
+    newNode = sorted(objects.copy())
     newNode.remove(object)
     print("checking ",newNode, object)
-    newNodeTuple = tuple(sorted(newNode))
+    newNodeTuple = tuple(newNode)
     status = 'Success'
     #check if object can be removed from Objects
     if(len(newNode)>0):
@@ -114,10 +114,15 @@ def checkObject(objects, object, id):
     
 
 def getSetID(objects, object):
+    global subsetSuccesses
     if len(setList[int(object)]) > 0:
         for item in setList[int(object)]:
             if(set(objects).issubset(item[0])):
-                return item[1]
+                if len(objects) < len(item[0]):
+                    print("result:" , list(set(objects)-set(object)), object, "is a subset of", item[0] ,"Success")
+                    subsetSuccesses +=1
+                    return item[1]
+                return -1
     return None
     
 
@@ -145,18 +150,19 @@ def addNodeToGraphAndQueue(newNode, objects):
 tries to create an Edge by removing object from objects
 '''''
 def tryCreateEdge(object, objects):
-    global subsetSuccesses, failures, n, successes, executer, futures, contactIDsList
+    global failures, n, successes, executer, futures, contactIDsList
 
     newNode = objects.copy()
     newNode.remove(object)  
     if args.check_subsets:
         matrixID = getSetID(objects, object)
-        if matrixID is not None:
+        if matrixID == -1:
+            return
+        elif matrixID is not None:
             addNodeToGraphAndQueue(newNode, objects)
             graph.add_edge(tuple(sorted(newNode)), tuple(sorted(objects)), moveID=object, edgeID=matrixID)
-            print("result:",newNode, object, "is a subset, Success")
-            subsetSuccesses +=1
             return 
+        
     isSuperset = False
     if args.check_failcontacts:
         for idList in contactIDsList[int(object)]:
@@ -201,6 +207,7 @@ def checkFutures():
                 contactIDsList[int(object)] = list(set(contactIDsList[int(object)])) #remove duplicates
             else:
                 timeouts+=1
+                
 
 
 while True:

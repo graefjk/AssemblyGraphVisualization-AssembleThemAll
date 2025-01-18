@@ -55,10 +55,12 @@ def save_path(obj_dir, path, n_frame=None):
     if path is None: return
     path = interpolate_path(path, n_frame)
 
+    matrices = []
     os.makedirs(obj_dir)
     for frame, state in enumerate(path):
-        np.save(os.path.join(obj_dir, 'transformationMatrices.npy'), get_transform_matrix(state))
+        matrices.append(get_transform_matrix(state))
 
+    np.savez(os.path.join(obj_dir, 'transformationMatrices.npz'), *matrices)
 
 
 def save_path_old(obj_dir, path, n_frame=None):

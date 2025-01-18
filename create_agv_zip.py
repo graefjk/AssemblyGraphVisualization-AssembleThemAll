@@ -109,8 +109,12 @@ def checkObject(objects, object, id):
             return None, None, None, object, status, id, contactIDs
         step_folder = os.path.join(save_folder, './steps/' ,  "./"+str(id))
         planner.save_path(path, step_folder, args.n_save_state)
+        return newNode, newNodeTuple, objects, object, status, id, set()
+    else:
+        return newNode, newNodeTuple, objects, object, status, -1, set()
+    
 
-    return newNode, newNodeTuple, objects, object, status, id, set()
+    
     
 
 def getSetID(objects, object):

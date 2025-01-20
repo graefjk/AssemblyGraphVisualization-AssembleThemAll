@@ -164,7 +164,7 @@ def tryCreateEdge(object, objects):
             return
         elif matrixID is not None:
             addNodeToGraphAndQueue(newNode, objects)
-            if not args.save_graph:
+            if args.save_graph:
                 graph.add_edge(tuple(sorted(newNode)), tuple(sorted(objects)), moveID=object, edgeID=matrixID)
             return 
         
@@ -193,7 +193,7 @@ def checkFutures():
             contactIDs = frozenset(contactIDs)
             if newNode is not None:
                 addNodeToGraphAndQueue(newNode, objects)
-                if not args.save_graph:
+                if args.save_graph:
                     graph.add_edge(newNodeTuple, tuple(sorted(objects)), moveID=object, edgeID=id)
                 if getSetID(objects, object) is None:
                     setList[int(object)].append([set(objects), id])

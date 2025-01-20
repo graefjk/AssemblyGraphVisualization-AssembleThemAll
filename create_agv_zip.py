@@ -37,12 +37,12 @@ parser.add_argument('--save-sdf', default=False, action='store_true')
 parser.add_argument('--check-subsets', type=int, default=1)
 parser.add_argument('--check-failcontacts', type=int, default=1)
 parser.add_argument('--top-down', type=int, default=1)
-
+parser.add_argument('--save-graph', type=int, default=1)
+parser.add_argument('--queue', type=int, default=0)
 
 
 args = parser.parse_args()
-print(not args.top_down)
-print(bool(args.check_subsets))
+print(not args.queue)
 
 project_base_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.'))
 asset_folder = os.path.join(project_base_dir, './assets')
@@ -121,7 +121,7 @@ def getSetID(objects, object):
     global subsetSuccesses
     if len(setList[int(object)]) > 0:
         for item in setList[int(object)]:
-            if(set(objects).issubset(item[0])):
+            if(frozenset(objects).issubset(item[0])):
                 if len(objects) < len(item[0]):
                     print("result:" , list(set(objects)-set(object)), object, "is a subset of", item[0] ,"Success")
                     subsetSuccesses +=1
@@ -164,7 +164,8 @@ def tryCreateEdge(object, objects):
             return
         elif matrixID is not None:
             addNodeToGraphAndQueue(newNode, objects)
-            graph.add_edge(tuple(sorted(newNode)), tuple(sorted(objects)), moveID=object, edgeID=matrixID)
+            if not args.save_graph:
+                graph.add_edge(tuple(sorted(newNode)), tuple(sorted(objects)), moveID=object, edgeID=matrixID)
             return 
         
     isSuperset = False
@@ -192,7 +193,8 @@ def checkFutures():
             contactIDs = frozenset(contactIDs)
             if newNode is not None:
                 addNodeToGraphAndQueue(newNode, objects)
-                graph.add_edge(newNodeTuple, tuple(sorted(objects)), moveID=object, edgeID=id)
+                if not args.save_graph:
+                    graph.add_edge(newNodeTuple, tuple(sorted(objects)), moveID=object, edgeID=id)
                 if getSetID(objects, object) is None:
                     setList[int(object)].append([set(objects), id])
             futures.remove(future)
@@ -225,9 +227,14 @@ while True:
         executer.shutdown(wait = True)
         executer = concurrent.futures.ProcessPoolExecutor(max_workers=maxWorkers)
 
+    checkFutures()
+
     while (len(nodeQueue)>0) and (len(futures)< maxWorkers*2):
         #print(len(futures), maxWorkers*2)
-        objects = nodeQueue.popleft()
+        if args.queue:
+            objects = nodeQueue.pop() # use a FIFO queue
+        else:
+            objects = nodeQueue.popleft() # use a stack
         print("submitting", objects)
         if args.top_down:
             for object in objects:
@@ -241,9 +248,6 @@ while True:
                 allParts.append(node)
                 tryCreateEdge(node, allParts)
 
-    
-    checkFutures()
-
     if (len(futures)==0) and (len(nodeQueue)==0):
         print("breaking ", nodeQueue)
         break
@@ -254,9 +258,17 @@ while True:
 
 executer.shutdown(wait = True)
 
-print("writing graph.json")
-with open(os.path.join(save_folder,'./graph.json'), 'w') as f:
-    json.dump(nx.readwrite.json_graph.node_link_data(graph), f)
+if args.save_graph:
+    print("writing graph.json")
+    with open(os.path.join(save_folder,'./graph.json'), 'w') as f:
+        json.dump(nx.readwrite.json_graph.node_link_data(graph), f)
+else:
+    print("writing sets.json")
+    for i in range(len(setList)):
+        for k in range(len(setList[i])):
+            setList[i][k][0] = list(setList[i][k][0]) #transform sets to lists so they are 
+    with open(os.path.join(save_folder,'./sets.json'), 'w') as f:
+        json.dump(setList, f)
 
 print("packing zip file")
 shutil.make_archive(filename, 'zip', save_folder)

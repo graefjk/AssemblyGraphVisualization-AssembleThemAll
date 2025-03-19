@@ -591,7 +591,7 @@ class BFSPlanner(PhysicsPlanner):
         return (status, t_plan, path, contactIDs) if return_path else (status, t_plan, None, contactIDs)
 
     def plan_rot(self, max_time, max_depth=None, seed=1, return_path=False, render=False, record_path=None):
-
+        contactIDs = set()
         self.seed(seed)
 
         actions = np.array([
@@ -645,6 +645,8 @@ class BFSPlanner(PhysicsPlanner):
                             new_state = self.get_state()
                             temp_path.append(new_state.q)
 
+                            contactIDs.update(self.get_contact_bodies(self.move_id))
+
                             t_plan = time() - t_start
                             if t_plan > max_time:
                                 status = 'Timeout'
@@ -685,7 +687,7 @@ class BFSPlanner(PhysicsPlanner):
         if render:
             self.render(path, record_path=record_path)
 
-        return (status, t_plan, path) if return_path else (status, t_plan)
+        return (status, t_plan, path, contactIDs) if return_path else (status, t_plan, None, contactIDs)
 
 
 def get_planner(name):

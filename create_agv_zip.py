@@ -16,7 +16,7 @@ logging.disable(logging.WARNING)
 start = time.time()
 
 parser = ArgumentParser()
-parser.add_argument('--planner', type=str, required=True, choices=['bfs', 'bk-rrt'])
+parser.add_argument('--planner', type=str, required=True, default='bfs', choices=['bfs', 'bk-rrt'])
 parser.add_argument('--id', type=str, required=True, help='assembly id (e.g. 00000)')
 parser.add_argument('--dir', type=str, default='multi_assembly', help='directory storing all assemblies')
 parser.add_argument('--move-id', type=str, default='0')
@@ -42,7 +42,6 @@ parser.add_argument('--queue', type=int, default=0)
 
 
 args = parser.parse_args()
-print(not args.queue)
 
 project_base_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.'))
 asset_folder = os.path.join(project_base_dir, './assets')
@@ -66,9 +65,13 @@ clear_saved_sdfs(assembly_dir)
 
 print(names)
 
-
 graph = nx.DiGraph()
 part_ids = sorted([name.replace('.obj', '') for name in names])
+partIDdict = {}
+for i in range(len(part_ids)):
+    partIDdict.update({part_ids[i]:i})
+
+print(partIDdict)
 
 if args.top_down:
     graph.add_node(tuple(sorted(part_ids)))
@@ -119,8 +122,8 @@ def checkObject(objects, object, id):
 
 def getSetID(objects, object):
     global subsetSuccesses
-    if len(setList[int(object)]) > 0:
-        for item in setList[int(object)]:
+    if len(setList[partIDdict[object]]) > 0:
+        for item in setList[partIDdict[object]]:
             if(frozenset(objects).issubset(item[0])):
                 if len(objects) < len(item[0]):
                     print("result:" , list(set(objects)-set(object)), object, "is a subset of", item[0] ,"Success")
@@ -170,7 +173,7 @@ def tryCreateEdge(object, objects):
         
     isSuperset = False
     if args.check_failcontacts:
-        for idList in contactIDsList[int(object)]:
+        for idList in contactIDsList[partIDdict[object]]:
             if set(newNode).issuperset(idList):
                 isSuperset = True
     if not isSuperset:
@@ -196,21 +199,21 @@ def checkFutures():
                 if args.save_graph:
                     graph.add_edge(newNodeTuple, tuple(sorted(objects)), moveID=object, edgeID=id)
                 if getSetID(objects, object) is None:
-                    setList[int(object)].append([set(objects), id])
+                    setList[partIDdict[object]].append([set(objects), id])
             futures.remove(future)
             if status == 'Success':
                 successes+=1
             elif args.check_failcontacts:
                 isSuperset = False
-                for i in range(len(contactIDsList[int(object)])):
-                    if contactIDs.issubset(contactIDsList[int(object)][i]):
-                        contactIDsList[int(object)][i]=contactIDs
-                    elif contactIDs.issuperset(contactIDsList[int(object)][i]):
+                for i in range(len(contactIDsList[partIDdict[object]])):
+                    if contactIDs.issubset(contactIDsList[partIDdict[object]][i]):
+                        contactIDsList[partIDdict[object]][i]=contactIDs
+                    elif contactIDs.issuperset(contactIDsList[partIDdict[object]][i]):
                         isSuperset = True         
-                if not isSuperset and not (contactIDs in contactIDsList[int(object)]):
-                    contactIDsList[int(object)].append(contactIDs)
+                if not isSuperset and not (contactIDs in contactIDsList[partIDdict[object]]):
+                    contactIDsList[partIDdict[object]].append(contactIDs)
                     print(contactIDsList)
-                contactIDsList[int(object)] = list(set(contactIDsList[int(object)])) #remove duplicates
+                contactIDsList[partIDdict[object]] = list(set(contactIDsList[partIDdict[object]])) #remove duplicates
                 timeouts += 1
             else:
                 timeouts += 1

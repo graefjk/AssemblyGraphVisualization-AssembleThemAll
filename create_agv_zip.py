@@ -263,14 +263,14 @@ executer.shutdown(wait = True)
 
 if args.save_graph:
     print("writing graph.json")
-    with open(os.path.join(save_folder,'./graph.json'), 'w') as f:
-        json.dump(nx.readwrite.json_graph.node_link_data(graph), f)
+    with open(os.path.join(save_folder, './graph.json'), 'w') as f:
+        json.dump(nx.readwrite.json_graph.node_link_data(graph), f, indent=4)
 else:
     print("writing sets.json")
     for i in range(len(setList)):
         for k in range(len(setList[i])):
             setList[i][k][0] = list(setList[i][k][0]) #transform sets to lists so they are 
-    with open(os.path.join(save_folder,'./sets.json'), 'w') as f:
+    with open(os.path.join(save_folder, './sets.json', indent=4), 'w') as f:
         json.dump(setList, f)
 
 print("packing zip file")

@@ -1,4 +1,5 @@
 This is a fork of [Assemble Them All](https://github.com/yunshengtian/Assemble-Them-All) to create a file to use with the [Assembly Graph Visualization](https://github.tik.uni-stuttgart.de/st161399/AssemblyGraphVisualization) Project.<br>
+# Usage
 Install the project as instructed below.
 Create an assembly Graph with
 ```
@@ -11,9 +12,10 @@ python create_agv_zip.py --dir custom --id 23
 python create_agv_zip.py --dir custom --id 00008 --rotation
 ```
 
-# preparing OBJ files
-export all obj files into a folder. Make shure only obj files are in the folder.
-The program normally requires files that are specificly formated. The objects also need to be 10 times smaller than normal. 
+# Preparing OBJ files
+export all `obj` files into a folder. Make sure only `obj` files are in the folder.<br>
+The program normally requires files that are specificly formated.<br>
+The objects also need to be 10 times smaller than normal. <br>
 To format you objects use `formatObject.sh` in the assets folder
 ```
 ./formatObjs [folder path] [scaling factor]

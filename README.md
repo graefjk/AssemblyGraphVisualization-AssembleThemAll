@@ -1,4 +1,4 @@
-This is a fork of [Assemble Them All](https://github.com/yunshengtian/Assemble-Them-All) to create a file to use with the [Assembly Graph Visualization](https://github.tik.uni-stuttgart.de/st161399/AssemblyGraphVisualization) Project.<br>
+This is a fork of [Assemble Them All](https://github.com/yunshengtian/Assemble-Them-All) to create a file to use with the [Assembly Graph Visualization](https://github.com/graefjk/AssemblyGraphVisualization) Project.<br>
 # Usage
 Install the project as instructed below.
 Create an assembly Graph with
